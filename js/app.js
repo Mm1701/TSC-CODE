@@ -13,6 +13,7 @@ let selectedFiles = new Set();
 let modalType = "SINGLE";
 let lastScanAt = 0;
 let lastScanCode = "";
+const SCAN_COOLDOWN_MS = 1500;
 
 function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));}
 function toast(msg, error=false){const t=$("#toast");t.textContent=msg;t.className="toast show "+(error?"error":"");clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.className="toast",2300);}
@@ -27,7 +28,7 @@ function beep(ok=true){
 }
 function safeScanGate(code){
   const now=Date.now();
-  if(now-lastScanAt<700 && code===lastScanCode)return false;
+  if(now-lastScanAt<SCAN_COOLDOWN_MS && code===lastScanCode)return false;
   lastScanAt=now;lastScanCode=code;return true;
 }
 
@@ -107,11 +108,14 @@ function sessionCard(s, selectable=false){
     <div class="file-icon ${s.session_type==="PAIR"?"purple":""}">${s.session_type==="PAIR"?"⇄":"▣"}</div>
     <div class="file-main"><div class="file-name">${escapeHtml(s.name)}</div><div class="file-sub">${typeLabel(s.session_type)} · ${formatTime(s.updated_at)}</div></div>
     <span class="status ${statusClass(s.status)}">${statusLabel(s.status)}</span>
-    <button class="btn small ghost" data-resume="${s.id}">Tiếp tục</button>
+    <button class="btn small ghost" data-resume="${s.id}">Tiếp tục</button><button class="btn small danger-btn" data-delete-session="${s.id}">Xóa</button>
   </div>`;
 }
 function wireSessionButtons(){
-  $$("[data-resume]").forEach(b=>b.onclick=()=>resumeSession(b.dataset.resume));
+  $$('[data-resume]').forEach(b=>b.onclick=()=>resumeSession(b.dataset.resume));
+  $$('[data-delete-session]').forEach(b=>b.onclick=()=>deleteSession(b.dataset.deleteSession));
+  $$('[data-delete-single]').forEach(b=>b.onclick=()=>deleteSingleCode(b.dataset.deleteSingle));
+  $$('[data-delete-pair]').forEach(b=>b.onclick=()=>deletePair(b.dataset.deletePair));
   $$("[data-select]").forEach(b=>b.onchange=()=>{if(b.checked)selectedFiles.add(b.dataset.select);else selectedFiles.delete(b.dataset.select);updateExportBar();});
 }
 function renderSessionList(type){
@@ -156,7 +160,7 @@ async function initSingleScanner(){
 async function initPairScanner(){
   stopAllReaders();oldBoxCurrent="";recentPairs=[];$("#currentOldBox").textContent="Chưa có OldBOX";$("#currentNewBox").textContent="Chờ NewBOX";$("#pairInstruction").textContent="Bước 1 · Quét OldBOX";
   $("#newStart").disabled=true;$("#newManual").disabled=true;$("#oldStepStatus").textContent="Chưa quét";$("#newStepStatus").textContent="Đang chờ OldBOX";
-  const {data}=await db.from("box_pairs").select("old_box,new_box").eq("session_id",currentSession.id).order("created_at",{ascending:false}).limit(10);
+  const {data}=await db.from("box_pairs").select("id,old_box,new_box").eq("session_id",currentSession.id).order("created_at",{ascending:false}).limit(10);
   recentPairs=data||[];renderRecentPairs();await refreshPairCounters();setAlert("pair","Đang chờ OldBOX","Hãy quét OldBOX trước.","neutral");
 }
 function setAlert(type,title,small,state){
@@ -167,7 +171,7 @@ async function startReader(kind,elementId,onDecode){
   const reader=new Html5Qrcode(elementId);
   if(kind==="single")singleReader=reader;if(kind==="old")oldReader=reader;if(kind==="new")newReader=reader;
   try{
-    await reader.start({facingMode:"environment"},{fps:12,qrbox:(w,h)=>({width:Math.min(260,w*.75),height:Math.min(260,h*.75)})},onDecode,()=>{});
+    await reader.start({facingMode:"environment"},{fps:5,qrbox:(w,h)=>({width:Math.min(260,w*.75),height:Math.min(260,h*.75)})},onDecode,()=>{});
   }catch(e){toast("Không mở được camera. Kiểm tra quyền camera.",true);stopReader(kind);}
 }
 function stopReader(kind){
@@ -189,7 +193,7 @@ async function submitSingle(raw){
   recentSingle=[sn,...recentSingle.filter(x=>x!==sn)].slice(0,10);renderRecentSingle();await refreshSingleCounters();await touchSession();
   setAlert("single","PASS",sn,"pass");beep(true);$("#singleManual").value="";
 }
-function renderRecentSingle(){$("#singleRecentCount").textContent=recentSingle.length;$("#singleRecentList").innerHTML=recentSingle.map((x,i)=>`<div class="recent-code"><span>${i===0?"NEW":"#"+(i+1)}</span><b>${escapeHtml(x)}</b></div>`).join("")||`<div class="muted">Chưa có mã.</div>`;}
+function renderRecentSingle(){$("#singleRecentCount").textContent=recentSingle.length;$("#singleRecentList").innerHTML=recentSingle.map((x,i)=>`<div class="recent-code"><span>${i===0?"NEW":"#"+(i+1)}</span><b>${escapeHtml(x)}</b><button class="mini-delete" data-delete-single="${escapeHtml(x)}" title="Xóa mã">×</button></div>`).join("")||`<div class="muted">Chưa có mã.</div>`;wireSessionButtons();}
 async function refreshSingleCounters(){
   const {count:total}=await db.from("qr_codes").select("*",{count:"exact",head:true}).eq("session_id",currentSession.id);
   const {count:fail}=await db.from("scan_logs").select("*",{count:"exact",head:true}).eq("session_id",currentSession.id).eq("scan_type","SINGLE").eq("result","FAIL");
@@ -216,7 +220,7 @@ async function submitNew(raw){
   setTimeout(()=>resetPairForNext(),500);
 }
 function resetPairForNext(){oldBoxCurrent="";$("#currentOldBox").textContent="Chưa có OldBOX";$("#currentNewBox").textContent="Chờ NewBOX";$("#pairInstruction").textContent="Bước 1 · Quét OldBOX";$("#oldStepStatus").textContent="Chưa quét";$("#newStepStatus").textContent="Đang chờ OldBOX";$("#newStart").disabled=true;$("#newManual").disabled=true;$("#oldManual").value="";$("#newManual").value="";setAlert("pair","Đang chờ OldBOX","Hãy quét OldBOX tiếp theo.","neutral");}
-function renderRecentPairs(){$("#pairRecentCount").textContent=recentPairs.length;$("#pairRecentList").innerHTML=recentPairs.map((p,i)=>`<div class="recent-pair"><span>${i===0?"NEW":"#"+(i+1)}</span><b>${escapeHtml(p.old_box)}</b><strong>→</strong><b>${escapeHtml(p.new_box)}</b></div>`).join("")||`<div class="muted">Chưa có cặp.</div>`;}
+function renderRecentPairs(){$("#pairRecentCount").textContent=recentPairs.length;$("#pairRecentList").innerHTML=recentPairs.map((p,i)=>`<div class="recent-pair"><span>${i===0?"NEW":"#"+(i+1)}</span><b>${escapeHtml(p.old_box)}</b><strong>→</strong><b>${escapeHtml(p.new_box)}</b><button class="mini-delete" data-delete-pair="${p.id||""}" title="Xóa cặp">×</button></div>`).join("")||`<div class="muted">Chưa có cặp.</div>`;wireSessionButtons();}
 async function refreshPairCounters(){
   const {count:total}=await db.from("box_pairs").select("*",{count:"exact",head:true}).eq("session_id",currentSession.id);
   const {count:fail}=await db.from("scan_logs").select("*",{count:"exact",head:true}).eq("session_id",currentSession.id).in("scan_type",["PAIR_OLD","PAIR_NEW","PAIR"]).eq("result","FAIL");
@@ -230,13 +234,38 @@ async function loadHistory(){
   const {data,error}=await q;if(error){$("#historyBody").innerHTML=`<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;return}
   $("#historyBody").innerHTML=(data||[]).map(x=>`<tr><td>${formatTime(x.created_at)}</td><td>${escapeHtml(x.scan_sessions?.name||"—")}</td><td>${escapeHtml(x.scan_type)}</td><td>${escapeHtml(x.code||"—")}</td><td><span class="result ${x.result.toLowerCase()}">${x.result}</span></td><td>${escapeHtml(x.reason||"")}</td></tr>`).join("")||`<tr><td colspan="6">Chưa có dữ liệu.</td></tr>`;
 }
+async function deleteSession(id){
+  const s=sessions.find(x=>x.id===id);
+  if(!s || !confirm(`Xóa file "${s.name}" và toàn bộ mã bên trong?`)) return;
+  const {error}=await db.from("scan_sessions").delete().eq("id",id);
+  if(error){toast(error.message,true);return;}
+  selectedFiles.delete(id);
+  if(currentSession?.id===id){stopAllReaders();currentSession=null;showPage(s.session_type==="PAIR"?"pairFiles":"singleFiles");}
+  await loadSessions();toast("✓ Đã xóa file");
+}
+async function deleteSingleCode(sn){
+  if(!currentSession || !confirm(`Xóa mã "${sn}" khỏi file?`)) return;
+  const {error}=await db.from("qr_codes").delete().eq("session_id",currentSession.id).eq("sn",sn);
+  if(error){toast(error.message,true);return;}
+  await db.from("scan_logs").insert({session_id:currentSession.id,scan_type:"SINGLE",code:sn,result:"FAIL",reason:"Người dùng xóa mã",created_by:user.id});
+  recentSingle=recentSingle.filter(x=>x!==sn);renderRecentSingle();await refreshSingleCounters();await touchSession();toast("✓ Đã xóa mã");
+}
+async function deletePair(id){
+  if(!id || !currentSession || !confirm("Xóa cặp OldBOX / NewBOX này khỏi file?")) return;
+  const {data}=await db.from("box_pairs").select("old_box,new_box").eq("id",id).maybeSingle();
+  if(!data)return;
+  const {error}=await db.from("box_pairs").delete().eq("id",id);
+  if(error){toast(error.message,true);return;}
+  await db.from("scan_logs").insert({session_id:currentSession.id,scan_type:"PAIR",code:`${data.old_box} → ${data.new_box}`,old_box:data.old_box,new_box:data.new_box,result:"FAIL",reason:"Người dùng xóa cặp",created_by:user.id});
+  recentPairs=recentPairs.filter(x=>x.id!==id);renderRecentPairs();await refreshPairCounters();await touchSession();toast("✓ Đã xóa cặp");
+}
 async function exportSelected(){
   const arr=sessions.filter(s=>selectedFiles.has(s.id));if(!arr.length)return;
   const types=new Set(arr.map(s=>s.session_type));if(types.size>1){toast("Chỉ được chọn các file cùng loại để xuất.",true);return;}
   const type=arr[0].session_type;let rows=[];
   for(const s of arr){
     if(type==="SINGLE"){const {data}=await db.from("qr_codes").select("sn").eq("session_id",s.id).order("created_at");rows.push(...(data||[]).map(x=>({SN:x.sn})));}
-    else {const {data}=await db.from("box_pairs").select("old_box,new_box").eq("session_id",s.id).order("created_at");rows.push(...(data||[]).map(x=>({oldBOX:x.old_box,newBOX:x.new_box})));}
+    else {const {data}=await db.from("box_pairs").select("id,old_box,new_box").eq("session_id",s.id).order("created_at");rows.push(...(data||[]).map(x=>({oldBOX:x.old_box,newBOX:x.new_box})));}
   }
   const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,type==="SINGLE"?"SN":"BOX_PAIR");
   XLSX.writeFile(wb,`${arr.length===1?arr[0].name:"BOX_QR_EXPORT"}_${new Date().toISOString().slice(0,10)}.xlsx`);
