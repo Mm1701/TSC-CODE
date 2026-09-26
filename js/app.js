@@ -59,7 +59,7 @@ function showPage(page){
   if(page==="history")loadHistory();
 }
 function bindNavigation(){
-  $$("[data-page]").forEach(b=>b.addEventListener("click",()=>showPage(b.dataset.page)));
+  $$("[data-page]").forEach(b=>b.addEventListener("click",()=>{showPage(b.dataset.page);document.querySelector(".sidebar")?.classList.remove("open");}));
   $("#logoutBtn").onclick=logout;
   $("#themeBtn").onclick=()=>document.body.classList.toggle("dark");
   $("#newSingleBtn").onclick=()=>openSessionModal("SINGLE");
