@@ -11,129 +11,165 @@
   <script src="https://unpkg.com/html5-qrcode" defer></script>
 </head>
 <body>
-  <div id="loginView" class="auth-screen">
-    <div class="auth-card glass">
-      <div class="brand-mark">QR</div>
-      <h1>BOX QR Manager</h1>
-      <p>Supabase powered QR management</p>
-      <form id="loginForm">
-        <input id="email" type="email" placeholder="Email" required autocomplete="username">
-        <input id="password" type="password" placeholder="Password" required autocomplete="current-password">
-        <button class="primary full" type="submit">Đăng nhập</button>
-      </form>
-      <div id="loginError" class="error-text"></div>
+<div id="loginView" class="auth-screen">
+  <div class="auth-card">
+    <div class="brand-mark">QR</div>
+    <div class="eyebrow">BOX QR MANAGER</div>
+    <h1>Quản lý & quét QR</h1>
+    <p>Scan nhanh · quản lý theo file · xuất Excel.</p>
+    <form id="loginForm">
+      <input id="email" type="email" placeholder="Email" autocomplete="username" required>
+      <input id="password" type="password" placeholder="Mật khẩu" autocomplete="current-password" required>
+      <button class="btn primary full" type="submit">Đăng nhập</button>
+    </form>
+    <div id="loginError" class="error"></div>
+  </div>
+</div>
+
+<div id="appView" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-square">QR</span><div><b>BOX QR</b><small>Manager</small></div></div>
+    <nav>
+      <button class="nav-item active" data-page="home"><span>⌂</span> Tổng quan</button>
+      <button class="nav-item" data-page="singleFiles"><span>▣</span> Quét đơn</button>
+      <button class="nav-item" data-page="pairFiles"><span>⇄</span> Quét theo cặp</button>
+      <button class="nav-item" data-page="files"><span>▤</span> Quản lý file</button>
+      <button class="nav-item" data-page="history"><span>☷</span> Lịch sử</button>
+    </nav>
+    <div class="side-bottom">
+      <button id="themeBtn" class="nav-item"><span>◐</span> Dark / Light</button>
+      <button id="logoutBtn" class="nav-item danger"><span>↪</span> Đăng xuất</button>
     </div>
-  </div>
+  </aside>
 
-  <div id="appView" class="app hidden">
-    <aside class="sidebar glass">
-      <div class="logo"><span>QR</span><div><b>BOX Manager</b><small>Supabase</small></div></div>
-      <nav>
-        <button class="nav-item active" data-page="dashboard">⌂ <span>Dashboard</span></button>
-        <button class="nav-item" data-page="single">▣ <span>QR đơn</span></button>
-        <button class="nav-item" data-page="pair">⇄ <span>OldBOX → NewBOX</span></button>
-        <button class="nav-item" data-page="history">☷ <span>Lịch sử</span></button>
-        <button class="nav-item" data-page="manage">▤ <span>Quản lý Pair</span></button>
-        <button class="nav-item" data-page="import">⇩ <span>Import / Export</span></button>
-      </nav>
-      <div class="sidebar-bottom">
-        <button id="themeBtn" class="nav-item">◐ <span>Dark / Light</span></button>
-        <button id="logoutBtn" class="nav-item danger">↪ <span>Đăng xuất</span></button>
-      </div>
-    </aside>
+  <main class="main">
+    <header class="topbar">
+      <button id="mobileMenu" class="icon-btn">☰</button>
+      <div id="pageTitle">Tổng quan</div>
+      <div class="user-chip"><span id="userEmail">—</span></div>
+    </header>
 
-    <main class="main">
-      <header class="topbar glass">
+    <section id="home" class="page active">
+      <div class="hero">
         <div>
-          <button id="mobileMenu" class="icon-btn">☰</button>
-          <span id="pageTitle">Dashboard</span>
+          <div class="eyebrow">WORKSPACE</div>
+          <h2>Quét QR nhanh, quản lý file gọn.</h2>
+          <p>Chọn loại dữ liệu trước. Camera chỉ mở khi bắt đầu scan.</p>
         </div>
-        <div class="user-chip"><span id="userEmail">-</span></div>
-      </header>
+        <div class="hero-badge">TSC<span id="todayBadge"></span></div>
+      </div>
+      <div class="mode-grid">
+        <button class="mode-card single" data-page="singleFiles">
+          <span class="mode-icon">▣</span>
+          <div><b>Quét QR đơn</b><small>SN · mỗi mã chỉ lưu một lần trong file</small></div>
+          <strong>→</strong>
+        </button>
+        <button class="mode-card pair" data-page="pairFiles">
+          <span class="mode-icon">⇄</span>
+          <div><b>Quét theo cặp</b><small>OldBOX → NewBOX · theo dõi box hiện tại</small></div>
+          <strong>→</strong>
+        </button>
+      </div>
+      <div class="section-head"><div><h3>File đang làm gần đây</h3><p>Tiếp tục đúng file, không trộn dữ liệu.</p></div><button class="btn ghost" data-page="files">Xem tất cả</button></div>
+      <div id="recentSessions" class="recent-grid"></div>
+    </section>
 
-      <section id="dashboard" class="page active-page">
-        <div class="page-head">
-          <div><h2>Dashboard</h2><p>Tổng quan dữ liệu QR và Box Pair.</p></div>
-          <button class="primary" data-go="pair">+ Scan Pair</button>
-        </div>
-        <div class="bento-grid">
-          <div class="stat-card glass"><span>QR đơn</span><strong id="statSingle">0</strong><small>SN đã scan</small></div>
-          <div class="stat-card glass"><span>Box Pair</span><strong id="statPairs">0</strong><small>cặp đã tạo</small></div>
-          <div class="stat-card glass"><span>PASS</span><strong id="statPass">0</strong><small>scan thành công</small></div>
-          <div class="stat-card glass"><span>FAIL</span><strong id="statFail">0</strong><small>scan lỗi</small></div>
-          <div class="wide-card glass">
-            <div class="card-title"><span>Hoạt động gần đây</span><button class="ghost" data-go="history">Xem tất cả</button></div>
-            <div id="recentList" class="activity-list"></div>
-          </div>
-          <div class="quick-card glass">
-            <h3>Quick Scan</h3>
-            <button class="quick-btn" data-go="single">▣ Quét QR đơn</button>
-            <button class="quick-btn" data-go="pair">⇄ Quét OldBOX → NewBOX</button>
-          </div>
-        </div>
-      </section>
+    <section id="singleFiles" class="page">
+      <div class="section-head">
+        <div><div class="eyebrow">QR SINGLE</div><h2>Quét QR đơn</h2><p>Chọn file đang quét hoặc tạo file mới.</p></div>
+        <button class="btn primary" id="newSingleBtn">＋ Quét file mới</button>
+      </div>
+      <div class="toolbar"><input id="singleSearch" placeholder="🔎 Tìm tên file..."><select id="singleStatus"><option value="">Tất cả trạng thái</option><option>ACTIVE</option><option>PAUSED</option><option>COMPLETED</option></select></div>
+      <div id="singleSessionList" class="file-grid"></div>
+    </section>
 
-      <section id="single" class="page">
-        <div class="page-head"><div><h2>Quét QR đơn</h2><p>Export dữ liệu theo đúng một cột <b>SN</b>.</p></div></div>
-        <div class="scanner-layout">
-          <div class="scanner-card glass">
-            <div id="singleReader" class="reader"></div>
-            <div class="scanner-actions"><button id="singleStart" class="primary">Mở camera</button><button id="singleStop" class="ghost">Dừng</button></div>
-            <input id="singleManual" class="manual-input" placeholder="Hoặc nhập SN thủ công rồi Enter">
-          </div>
-          <div class="result-card glass">
-            <div id="singleResult" class="scan-result neutral">Chưa scan</div>
-            <div id="singleValue" class="scan-value">—</div>
-            <div class="hint">Mỗi SN chỉ được lưu một lần.</div>
-          </div>
-        </div>
-      </section>
+    <section id="pairFiles" class="page">
+      <div class="section-head">
+        <div><div class="eyebrow purple">QR PAIR</div><h2>Quét theo cặp</h2><p>Chọn file đang quét hoặc tạo file mới.</p></div>
+        <button class="btn primary purple-btn" id="newPairBtn">＋ Quét file mới</button>
+      </div>
+      <div class="toolbar"><input id="pairSearch" placeholder="🔎 Tìm tên file..."><select id="pairStatus"><option value="">Tất cả trạng thái</option><option>ACTIVE</option><option>PAUSED</option><option>COMPLETED</option></select></div>
+      <div id="pairSessionList" class="file-grid"></div>
+    </section>
 
-      <section id="pair" class="page">
-        <div class="page-head"><div><h2>OldBOX → NewBOX</h2><p>Quét theo cặp, chống trùng và bắt buộc OldBOX ≠ NewBOX.</p></div></div>
-        <div class="pair-layout">
-          <div class="pair-box glass">
-            <div class="step"><span>1</span><div><b>OldBOX</b><small>Quét mã box cũ</small></div></div>
+    <section id="files" class="page">
+      <div class="section-head">
+        <div><div class="eyebrow">FILE MANAGER</div><h2>Quản lý file</h2><p>Chọn các file cùng loại để xuất Excel.</p></div>
+        <button class="btn ghost" id="refreshFilesBtn">↻ Làm mới</button>
+      </div>
+      <div class="toolbar"><input id="allSearch" placeholder="🔎 Tìm file..."><select id="allType"><option value="">Tất cả loại</option><option value="SINGLE">QR đơn</option><option value="PAIR">QR cặp</option></select></div>
+      <div id="allSessionList" class="file-grid"></div>
+      <div id="exportBar" class="export-bar hidden"><div><b id="selectedCount">0</b> file được chọn</div><button class="btn primary" id="exportSelectedBtn">📊 Xuất Excel</button><button class="btn ghost" id="clearSelectedBtn">Bỏ chọn</button></div>
+    </section>
+
+    <section id="history" class="page">
+      <div class="section-head"><div><div class="eyebrow">AUDIT</div><h2>Lịch sử scan</h2><p>PASS / FAIL và lý do từng lần quét.</p></div></div>
+      <div class="toolbar"><input id="historySearch" placeholder="🔎 Tìm mã..."></div>
+      <div class="table-card"><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>File</th><th>Loại</th><th>Mã</th><th>Kết quả</th><th>Lý do</th></tr></thead><tbody id="historyBody"></tbody></table></div></div>
+    </section>
+
+    <section id="scanner" class="page">
+      <div class="scanner-head">
+        <div><button class="back-btn" id="scannerBack">← Danh sách file</button><div class="eyebrow" id="scannerEyebrow">SCANNER</div><h2 id="scannerTitle">—</h2><p id="scannerMeta">—</p></div>
+        <div class="scan-state" id="scannerState">● Đang quét</div>
+      </div>
+
+      <div id="singleScanner" class="scanner-layout hidden">
+        <div class="camera-card">
+          <div id="singleReader" class="reader"></div>
+          <div class="camera-actions"><button id="singleStart" class="btn primary">📷 Bật camera</button><button id="singleStop" class="btn ghost">Dừng</button></div>
+          <div class="manual-row"><input id="singleManual" placeholder="Hoặc nhập SN rồi Enter"><button id="singleManualBtn" class="btn ghost">OK</button></div>
+        </div>
+        <div class="scan-side">
+          <div id="singleAlert" class="scan-alert neutral"><span>●</span><div><b>Sẵn sàng</b><small>Đưa mã QR vào khung camera.</small></div></div>
+          <div class="counter-grid"><div><small>Tổng</small><b id="singleTotal">0</b></div><div><small>PASS</small><b id="singlePass">0</b></div><div><small>FAIL</small><b id="singleFail">0</b></div></div>
+          <div class="recent-scan-card"><div class="card-head"><b>Mã vừa quét</b><span id="singleRecentCount">0</span></div><div id="singleRecentList" class="recent-codes"></div></div>
+        </div>
+      </div>
+
+      <div id="pairScanner" class="hidden">
+        <div class="pair-current">
+          <div class="pair-current-label">ĐANG QUÉT</div>
+          <div class="pair-current-box"><span id="currentOldBox">Chưa có OldBOX</span><strong>→</strong><span id="currentNewBox">Chờ NewBOX</span></div>
+          <div id="pairInstruction">Bước 1 · Quét OldBOX</div>
+        </div>
+        <div class="pair-scan-grid">
+          <div class="camera-card pair-scan-card">
+            <div class="step-title"><span class="step-num">1</span><div><b>OldBOX</b><small id="oldStepStatus">Chưa quét</small></div></div>
             <div id="oldReader" class="reader"></div>
+            <button id="oldStart" class="btn primary full">📷 Quét OldBOX</button>
             <input id="oldManual" class="manual-input" placeholder="Nhập OldBOX rồi Enter">
-            <div id="oldValue" class="code-value">Chưa có</div>
           </div>
-          <div class="arrow">→</div>
-          <div class="pair-box glass">
-            <div class="step"><span>2</span><div><b>NewBOX</b><small>Quét mã box mới</small></div></div>
+          <div class="pair-arrow">→</div>
+          <div class="camera-card pair-scan-card">
+            <div class="step-title"><span class="step-num purple-step">2</span><div><b>NewBOX</b><small id="newStepStatus">Đang chờ OldBOX</small></div></div>
             <div id="newReader" class="reader"></div>
-            <input id="newManual" class="manual-input" placeholder="Nhập NewBOX rồi Enter">
-            <div id="newValue" class="code-value">Chưa có</div>
+            <button id="newStart" class="btn primary purple-btn full" disabled>📷 Quét NewBOX</button>
+            <input id="newManual" class="manual-input" placeholder="Nhập NewBOX rồi Enter" disabled>
           </div>
         </div>
-        <div class="pair-footer glass">
-          <div id="pairResult" class="scan-result neutral">Đang chờ OldBOX</div>
-          <button id="pairReset" class="ghost">Reset</button>
-        </div>
-      </section>
+        <div id="pairAlert" class="scan-alert neutral"><span>●</span><div><b>Đang chờ OldBOX</b><small>Hãy quét OldBOX trước.</small></div></div>
+        <div class="counter-grid pair-counters"><div><small>Pairs</small><b id="pairTotal">0</b></div><div><small>PASS</small><b id="pairPass">0</b></div><div><small>FAIL</small><b id="pairFail">0</b></div></div>
+        <div class="recent-scan-card"><div class="card-head"><b>Cặp vừa quét</b><span id="pairRecentCount">0</span></div><div id="pairRecentList" class="recent-pairs"></div></div>
+      </div>
+    </section>
+  </main>
+</div>
 
-      <section id="history" class="page">
-        <div class="page-head"><div><h2>Lịch sử Scan</h2><p>Toàn bộ lần scan PASS / FAIL.</p></div></div>
-        <div class="table-card glass"><div class="table-tools"><input id="historySearch" placeholder="Tìm SN / OldBOX / NewBOX..."></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Loại</th><th>SN</th><th>OldBOX</th><th>NewBOX</th><th>Kết quả</th><th>Lý do</th></tr></thead><tbody id="historyBody"></tbody></table></div></div>
-      </section>
-
-      <section id="manage" class="page">
-        <div class="page-head"><div><h2>Quản lý Pair</h2><p>Danh sách OldBOX / NewBOX đã ghép.</p></div><button id="exportPairsBtn" class="primary">Export Excel</button></div>
-        <div class="table-card glass"><div class="table-tools"><input id="pairSearch" placeholder="Tìm OldBOX / NewBOX..."></div><div class="table-wrap"><table><thead><tr><th>OldBOX</th><th>NewBOX</th><th>Người tạo</th><th>Thời gian</th></tr></thead><tbody id="pairBody"></tbody></table></div></div>
-      </section>
-
-      <section id="import" class="page">
-        <div class="page-head"><div><h2>Import / Export</h2><p>Import theo đúng cấu trúc từng loại.</p></div></div>
-        <div class="import-grid">
-          <div class="import-card glass"><h3>QR đơn</h3><p>Excel chỉ có cột <b>SN</b>.</p><input id="singleFile" type="file" accept=".xlsx,.xls,.csv"><button id="importSingleBtn" class="primary">Import SN</button><button id="exportSingleBtn" class="ghost">Export SN.xlsx</button><div id="singleImportInfo" class="hint"></div></div>
-          <div class="import-card glass"><h3>QR cặp</h3><p>Excel có đúng <b>oldBOX, newBOX</b>.</p><input id="pairFile" type="file" accept=".xlsx,.xls,.csv"><button id="importPairBtn" class="primary">Import Pair</button><button id="exportPairBtn" class="ghost">Export oldBOX_newBOX.xlsx</button><div id="pairImportInfo" class="hint"></div></div>
-        </div>
-      </section>
-    </main>
+<div id="sessionModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-head"><div><div class="eyebrow">NEW FILE</div><h3 id="modalTitle">Tạo file QR đơn</h3></div><button id="closeModal" class="icon-btn">×</button></div>
+    <div id="modalTypeHint" class="type-hint">Mỗi file xuất một cột SN.</div>
+    <label class="field-label">Tên file</label>
+    <div class="name-tabs"><label><input type="radio" name="nameMode" value="auto" checked> Tự động</label><label><input type="radio" name="nameMode" value="custom"> Tự đặt tên</label></div>
+    <div id="autoNamePreview" class="auto-name">TSC260926123045</div>
+    <input id="customName" class="manual-input hidden" placeholder="Ví dụ: CA1_LINE_A">
+    <button id="createSessionBtn" class="btn primary full">Tạo file & bắt đầu quét</button>
   </div>
+</div>
 
-  <div id="toast" class="toast"></div>
-  <script src="js/config.js"></script>
-  <script src="js/app.js"></script>
+<div id="toast" class="toast"></div>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

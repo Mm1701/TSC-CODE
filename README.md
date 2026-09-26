@@ -1,34 +1,32 @@
-# BOX QR Manager
+# BOX QR Manager v3
 
-Hybrid Bento + SaaS Dashboard + Dark/Light + Responsive + Light Glass UI.
+## Flow
+- Home -> QR đơn / QR cặp
+- Vào QR đơn/cặp trước tiên chỉ thấy danh sách file.
+- "Quét file mới" -> đặt tên tự động hoặc tự đặt -> mới mở scanner.
+- Tên tự động: `TSCYYMMDDHHmmss`, ví dụ `TSC260926123045`.
+- QR đơn: export `SN`.
+- QR cặp: export `oldBOX,newBOX`.
+- File Manager cho phép chọn nhiều file, nhưng chỉ export các file cùng loại.
 
-## Stack
-- HTML5 / CSS3 / Vanilla JavaScript
-- Supabase Auth + Postgres + Realtime
-- SheetJS for Excel import/export
-- html5-qrcode for camera QR scanning
+## Chống trùng
+- QR đơn: unique `(session_id, sn)`.
+- Pair: unique `(session_id, old_box)` và `(session_id, new_box)`.
+- OldBOX != NewBOX.
+- Có kiểm tra trước insert + unique constraint ở database.
+- Có cảnh báo PASS/FAIL, beep/vibrate và danh sách mã vừa quét.
+
+## Pair scanner
+- Không tự bật camera.
+- Bấm "Quét OldBOX" mới mở camera OldBOX.
+- Sau khi có OldBOX, hệ thống hiển thị rõ `ĐANG QUÉT OldBOX`.
+- NewBOX chỉ được bật sau khi OldBOX hợp lệ.
+- Sau khi pair PASS, tự reset về chờ OldBOX tiếp theo.
 
 ## Setup
-1. Create a Supabase project.
-2. Open `supabase/schema.sql` in Supabase SQL Editor and run it.
-3. Create an email/password user in Supabase Authentication.
-4. Open `js/config.js` and replace the placeholders with your Supabase URL and anon key.
-5. Serve this folder from a web server (GitHub Pages, Netlify, Vercel, local static server, etc.).
+1. Supabase SQL Editor -> chạy toàn bộ `supabase/schema.sql`.
+2. Authentication -> tạo user.
+3. Điền URL + anon/publishable key vào `js/config.js`.
+4. Mở `index.html` bằng web server (camera HTTPS hoặc localhost).
 
-## Export rules
-- Single QR mode => Excel with exactly one column: `SN`
-- Pair mode => Excel with exactly two columns: `oldBOX`, `newBOX`
-
-## Main features in this starter
-- Login/logout
-- Dashboard statistics
-- Single QR scanner
-- OldBOX -> newBOX scanner
-- Duplicate protection
-- oldBOX != newBOX protection
-- Scan history
-- Pair management
-- Excel import/export
-- Dark/light mode
-- Responsive mobile layout
-- Supabase Realtime refresh
+> Camera trên điện thoại cần HTTPS/localhost và quyền camera.
