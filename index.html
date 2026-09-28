@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>BOX QR Manager</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23007aff'/%3E%3Ctext x='32' y='42' font-size='26' font-weight='700' text-anchor='middle' fill='white' font-family='Arial'%3EQR%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z" fill="currentColor"/></symbol>
+<symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="i-files" viewBox="0 0 24 24"><path d="M3 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z" fill="currentColor"/></symbol>
+<symbol id="i-hist" viewBox="0 0 24 24"><path d="M12 7v5l3 2M4 12a8 8 0 108-8 8 8 0 00-6 2.7M4 4v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-set" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="17" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+</defs></svg>
+
+<div id="loginView" class="auth">
+  <form id="loginForm" class="card auth-card">
+    <div class="logo">QR</div>
+    <h1>BOX QR Manager</h1>
+    <p class="muted">Đăng nhập để quét và quản lý mã.</p>
+    <input id="email" type="email" placeholder="Email" autocomplete="username" required>
+    <input id="password" type="password" placeholder="Mật khẩu" autocomplete="current-password" required>
+    <button id="loginBtn" class="btn primary full" type="submit">Đăng nhập</button>
+    <div id="loginError" class="error"></div>
+  </form>
+</div>
+
+<div id="appView" class="app hidden">
+  <nav class="tabs">
+    <div class="tabs-brand"><span class="logo sm">QR</span><b>BOX QR</b></div>
+    <button data-page="home" class="tab active"><svg><use href="#i-home"/></svg><span>Tổng quan</span></button>
+    <button data-page="scan" class="tab"><svg><use href="#i-scan"/></svg><span>Quét</span></button>
+    <button data-page="files" class="tab"><svg><use href="#i-files"/></svg><span>File</span></button>
+    <button data-page="history" class="tab"><svg><use href="#i-hist"/></svg><span>Lịch sử</span></button>
+    <button data-page="settings" class="tab"><svg><use href="#i-set"/></svg><span>Cài đặt</span></button>
+  </nav>
+
+  <main class="main">
+    <section id="home" class="page active">
+      <h1 class="large">Tổng quan</h1>
+      <div class="grid2">
+        <button class="card mode" data-start="SINGLE"><span class="ico blue">▣</span><div><b>Quét QR đơn</b><small>Mỗi SN chỉ lưu một lần trong file</small></div></button>
+        <button class="card mode" data-start="PAIR"><span class="ico purple">⇄</span><div><b>Quét theo cặp</b><small>OldBOX → NewBOX, chống trùng & nhầm</small></div></button>
+      </div>
+      <h3 class="sect">Gần đây</h3>
+      <div id="recentSessions" class="list"></div>
+    </section>
+
+    <section id="scan" class="page">
+      <h1 class="large">Quét</h1>
+      <div class="seg" id="kindSeg"><button data-kind="SINGLE" class="on">QR đơn</button><button data-kind="PAIR">QR cặp</button></div>
+      <div class="row-tools"><input id="scanSearch" placeholder="Tìm tên file"><button id="newBtn" class="btn primary">＋ File mới</button></div>
+      <div id="scanList" class="list"></div>
+    </section>
+
+    <section id="files" class="page">
+      <h1 class="large">File</h1>
+      <div class="row-tools"><input id="allSearch" placeholder="Tìm tên file"><select id="allType"><option value="">Tất cả</option><option value="SINGLE">QR đơn</option><option value="PAIR">QR cặp</option></select></div>
+      <div id="allList" class="list"></div>
+      <div id="exportBar" class="export-bar hidden"><b><span id="selCount">0</span> file</b><button id="exportBtn" class="btn primary">Xuất Excel</button><button id="clearSel" class="btn">Bỏ chọn</button></div>
+    </section>
+
+    <section id="history" class="page">
+      <h1 class="large">Lịch sử</h1>
+      <div class="row-tools"><input id="histSearch" placeholder="Tìm mã hoặc lý do"><select id="histResult"><option value="">Tất cả</option><option value="PASS">PASS</option><option value="FAIL">FAIL</option></select></div>
+      <div class="card table-wrap"><table><thead><tr><th>Thời gian</th><th>File</th><th>Mã</th><th>Kết quả</th><th>Lý do</th></tr></thead><tbody id="histBody"></tbody></table></div>
+    </section>
+
+    <section id="settings" class="page">
+      <h1 class="large">Cài đặt</h1>
+      <div class="card group">
+        <div class="cell"><span>Giao diện</span><div class="seg mini" id="themeSeg"><button data-theme="auto">Tự động</button><button data-theme="light">Sáng</button><button data-theme="dark">Tối</button></div></div>
+        <label class="cell"><span>Âm thanh khi quét</span><input type="checkbox" id="optSound" class="sw"></label>
+        <label class="cell"><span>Rung khi quét<small>iPhone (Safari) không hỗ trợ rung từ web</small></span><input type="checkbox" id="optVib" class="sw"></label>
+        <div class="cell"><span>Tài khoản<small id="userEmail">—</small></span><button id="logoutBtn" class="btn danger">Đăng xuất</button></div>
+      </div>
+    </section>
+
+    <section id="scanner" class="page">
+      <div class="scanner-top">
+        <button id="backBtn" class="btn">‹ Danh sách</button>
+        <div class="grow"><div class="eyebrow" id="scKind"></div><h2 id="scTitle">—</h2></div>
+        <button id="finishBtn" class="btn">Hoàn thành</button>
+      </div>
+      <div class="scan-grid">
+        <div class="cam-col">
+          <div class="cam" id="cam">
+            <div id="reader"></div>
+            <div class="corners"><i></i><i></i><i></i><i></i></div>
+            <div id="camIdle" class="cam-idle"><button id="camStart" class="btn primary big">Bật camera</button></div>
+            <div id="flash" class="flash"><div class="flash-ico"></div><b id="flashTitle"></b><small id="flashSub"></small></div>
+          </div>
+          <div class="cam-tools"><button id="camStop" class="btn">Tắt camera</button></div>
+          <div class="manual"><input id="manual" placeholder="Hoặc nhập mã rồi Enter" autocomplete="off" autocapitalize="off"><button id="manualBtn" class="btn">OK</button></div>
+        </div>
+        <div class="side-col">
+          <div id="pairBox" class="card step hidden">
+            <div class="step-row"><span id="stepBadge" class="badge">1</span><b id="stepText">Quét OldBOX</b></div>
+            <div class="pairview"><span id="pvOld">—</span><i>→</i><span id="pvNew">—</span></div>
+            <button id="resetOld" class="btn small hidden">Quét lại OldBOX</button>
+          </div>
+          <div class="stats"><div><small>Tổng</small><b id="stTotal">0</b></div><div class="ok"><small>PASS</small><b id="stPass">0</b></div><div class="bad"><small>FAIL</small><b id="stFail">0</b></div></div>
+          <div class="card"><div class="card-head"><b>Vừa quét</b><span id="recentCount" class="muted">0</span></div><div id="recentList" class="recent"></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="backdrop hidden"><div class="sheet">
+  <h3 id="modalTitle">Tạo file</h3>
+  <p id="modalHint" class="muted"></p>
+  <div class="seg"><button data-nm="auto" class="on">Tự động</button><button data-nm="custom">Tự đặt tên</button></div>
+  <div id="autoName" class="autoname"></div>
+  <input id="customName" class="hidden" maxlength="60" placeholder="Ví dụ: CA1_LINE_A">
+  <div class="sheet-actions"><button id="modalCancel" class="btn">Hủy</button><button id="createBtn" class="btn primary">Tạo & bắt đầu quét</button></div>
+</div></div>
+
+<div id="dlg" class="backdrop hidden"><div class="sheet small"><p id="dlgMsg"></p><div class="sheet-actions"><button id="dlgNo" class="btn">Hủy</button><button id="dlgYes" class="btn danger fill">Xóa</button></div></div></div>
+<div id="toast" class="toast"></div>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
